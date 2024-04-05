@@ -1,0 +1,133 @@
+## Librerías utilizadas
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.model_selection import train_test_split
+import statsmodels.api as sm
+import statsmodels.api as sfm
+
+## Obtener los datos
+df = pd.read_csv('2022worldcup.csv')
+df.head()
+df.info()
+
+## Análisis Descriptivo
+## Selecciones que más goles anotaron
+gols = df.nlargest(10, 'Gls')
+gols
+## Gráfico de selecciones que más goles anotaron
+gols.plot(kind = 'bar', x = 'Squad', y = 'Gls', label = 'Goles', color = '#007F73', width = 0.6)
+plt.xlabel('Selección')
+plt.ylabel('Goles')
+plt.title('Selecciones que más goles anotaron')
+plt.show()
+## Selecciones que más minutos jugaron
+dfg = df.nlargest(10, 'Min')
+## De menor a mayor
+dfg = dfg.sort_values(by = 'Min', ascending = True)
+dfg
+dfg.plot(kind = 'barh', x = 'Squad', y = 'Min', label = 'Minutos',  color = '#4CCD99', width = 0.6)
+plt.xlabel('Minutos Jugados')
+plt.ylabel('Selección')
+plt.title('Selecciones con más minutos disputados')
+plt.show()
+## Las selecciones que más minutos jugaron en Qatar 2022
+## Selecciones que tuvieron mayor posesión de balón 
+pos = df.nlargest(10, 'Poss')
+pos
+pos.plot(kind = 'bar', x = 'Squad', y = 'Poss', label = 'Posesión', color = '#FFF455', width = 0.6)
+plt.xlabel('Selección')
+plt.ylabel('Posesión')
+plt.title('Selecciones con mayor posesión de balón')
+plt.show()
+## Selecciones con el promedio de edad más corta
+jov = df.nsmallest(10, 'Age')
+jov
+m_range = range(1, len(jov.index) +1)
+plt.hlines(y = m_range, xmin = 0, xmax = jov['Age'], color = '#FFC700')
+plt.plot(jov['Age'], m_range,'o')
+
+plt.yticks(m_range,jov['Squad'])
+plt.title('Promedio de edad de las Selecciones')
+plt.xlabel('Edad')
+plt.ylabel('Selección')
+plt.show()
+## Boxplot
+ax = sns.boxplot(y = 'Age', data = df)
+plt.ylabel('Años')
+plt.xlabel('Edades')
+plt.title('Edades de los jugadores que disputaron la Copa del Mundo')
+## Se puede ver que la mediana de la edad de los jugadores que disputaron el torneo fue de 27 años aproximadamente
+plt.boxplot(x = 'Age', data = df, patch_artist = True, labels = ['Edades'])
+plt.ylabel('Años')
+plt.title('Edades de los jugadores que disputaron la Copa del Mundo')
+sns.boxplot(y = 'Gls', data = df)
+plt.ylabel('Goles')
+plt.title('Goles anotados por las selecciones de futbol')
+sns.boxplot(y = 'Ast', data = df)
+plt.ylabel('Asistencias')
+plt.title('Asistencias durante la Copa del Mundo')
+## La cantidad de asistencias durante el mundial fue de 3 aproximadamente
+sns.boxplot(y = 'Poss', data = df)
+plt.ylabel('Posesión de balón')
+plt.title('Posesión de balón durante la Copa del Mundo')
+## Relación entre la posesión y la cantidad de goles anotados
+x = df['Poss']
+y = df['Gls']
+plt.scatter(x,y, c = 'blue')
+plt.xlabel('Posesión de balón')
+plt.ylabel('Goles anotados')
+corre = df['Poss'].corr(df['Gls'])
+print(f'Correlación entre la posesión del balón y los goles anotados: {corre}')
+## Seleccionar una muestra de entrenamiento y una de prueba, del 80 y del 20% respectivamente
+x_train, x_test, y_train, y_test = train_test_split(
+                                          x.values.reshape(-1,1),
+                                          y.values.reshape(-1,1),
+                                          train_size = 0.8,
+                                          random_state = 123,
+                                          shuffle = True)
+## Ajustar un modelo
+x_train = sm.add_constant(x_train, prepend = True)
+modelo = sm.OLS(endog = y_train, exog = x_train,)
+modelo = modelo.fit()
+print(modelo.summary())
+confianza = modelo.conf_int(alpha = 0.05)
+confianza
+predicciones = modelo.get_prediction(exog = x_train).summary_frame(alpha = 0.05)
+predicciones
+## Gráfico del modelo
+predicciones = modelo.get_prediction(exog = x_train).summary_frame(alpha = 0.05)
+predicciones['x'] = x_train[:,1]
+predicciones['y'] = y_train
+predicciones = predicciones.sort_values('x')
+
+fig, ax = plt.subplots(figsize= (6, 3.84))
+ax.scatter(predicciones['x'], predicciones['y'], marker = 'o',color = 'gray')
+ax.plot(predicciones['x'],predicciones['mean'], linestyle = '-', label = 'OLS')
+ax.plot(predicciones['x'], predicciones["mean_ci_lower"], linestyle='--', color='red', label="95% CI")
+ax.plot(predicciones['x'], predicciones["mean_ci_upper"], linestyle='--', color='red')
+ax.fill_between(predicciones['x'], predicciones["mean_ci_lower"], predicciones["mean_ci_upper"], alpha=0.1)
+ax.legend();
+x2 = df.iloc[:,2:3]
+y2 = df['Gls']
+corre2 = df['Age'].corr(df['Gls'])
+print(f'Correlación entre la edad y los goles anotados: {corre2}')
+## Datos de entrenamiento y de prueba
+x2_train, x2_test, y2_train, y2_test = train_test_split(
+                                             x2,
+                                             y2.values.reshape(-1,1),
+                                             train_size = 0.8,
+                                             random_state = 123,
+                                             shuffle = True)
+
+## Ajuste del modelo
+mult = sfm.OLS(y2_train, x2_train)
+reg_mult = mult.fit()
+print(reg_mult.summary())
+## Intervalos de confianza
+confianza2 = reg_mult.conf_int(alpha = 0.05)
+confianza2
+predicciones2 = reg_mult.get_prediction(exog = x2_train).summary_frame(alpha = 0.05)
+predicciones2
+
